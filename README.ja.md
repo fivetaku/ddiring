@@ -1,0 +1,97 @@
+[English](README.md) | [한국어](README.ko.md) | [中文](README.zh.md) | 日本語 | [Español](README.es.md)
+
+# ddiring
+
+<p align="center">
+  <img src="assets/ddiring-hero-01.png" alt="ddiring" width="320">
+</p>
+
+> 「タスク完了」ではなく、**どのセッションが**終わったのかを教えてくれる通知。
+
+iTerm、Cursor、セッションマネージャーにまたがって Claude Code のセッションを5〜10個動かしていると、素っ気ない「タスク完了」バナーでは結局ウィンドウを一つずつ探すはめになります。ddiring(ティリン — 韓国語の「ピコン!」)は、通知ひとつで3つの問いに答えます: **どのプロジェクトフォルダ**か(タイトル)、そのセッションが**どのターミナル/アプリ**にいるか(サブタイトル)、**何を頼んだ作業**か(本文 — 最後のプロンプトの70字要約)。クリックすればそのアプリへ直接ジャンプ。
+
+[クイックスタート](#クイックスタート) • [なぜ-ddiring](#なぜ-ddiring) • [仕組み](#仕組み) • [主な機能](#主な機能) • [コマンド](#コマンド) • [動作要件](#動作要件)
+
+---
+
+## クイックスタート
+
+### 1. マーケットプレイスを追加
+
+```
+/plugin marketplace add https://github.com/fivetaku/gptaku_plugins.git
+```
+
+### 2. インストール
+
+```
+/plugin install ddiring
+```
+
+### 3. Claude Code を再起動
+
+(フックとコマンドは再起動後に登録されます。)
+
+### 4. 使う
+
+何もする必要はありません — これからはすべてのセッションが終わるたびに鳴ります:
+
+- **✅ my-app** / *iTerm* / 「認証テストの flaky を直して CI 再実行」 — iTerm のあの作業が完了
+- **⏸️ blog** / *Cursor* / 「権限待ち」 — あるセッションがあなたを待っている
+- 通知クリック(macOS + `terminal-notifier`)でそのアプリにフォーカス
+
+クリックでフォーカスしたい場合(任意):
+
+```bash
+brew install terminal-notifier
+```
+
+## なぜ ddiring
+
+マルチセッション作業で繰り返される小さな苦痛: *何かが*終わったのに、標準の通知はどれがどこで終わったのか教えてくれない。セッション ID も役に立ちません — `a3f9c2` を見て「Warp で回していたあのリファクタリング」を思い出せる人はいない。ddiring は人間が実際に認識できる3つを見せます: フォルダ名、アプリ名、そして自分が打った最後のプロンプト。
+
+## 仕組み
+
+セッションが応答を終えると `Stop` フックが(権限/入力待ちは `Notification` フックが ⏸️ で)発火します。スクリプトは:
+
+1. transcript の末尾(最後の200KB)から最後の**本物の**プロンプトを抽出 — ツール結果・システムタグ・割り込み表記はスキップ;
+2. プロセス環境からホストアプリを識別 — macOS は `__CFBundleIdentifier`、Windows は環境変数の判定(`TERM_PROGRAM` → `WT_SESSION` → `ConEmuPID`、継承による誤検出を避けて内側の変数を優先);
+3. 通知を発射: macOS は `terminal-notifier`(クリック可能)または `osascript`、Windows は PowerShell 5.1 の WinRT トースト。
+
+フックはスクリプトをファイル経由で実行するため、マッピングの修正は**すでに起動中のセッションにも**即座に反映されます — 再起動不要。
+
+## 主な機能
+
+- **30種以上のアプリマッピング、リサーチで実測検証**(ローカル `Info.plist`・Homebrew cask 定義・公式リポジトリ設定): Terminal, iTerm2, VS Code (+Insiders), VSCodium, Cursor, Windsurf (Devin), Antigravity, Warp, Ghostty, Alacritty, kitty, WezTerm, Tabby, Hyper, Zed, JetBrains, Rio, Termius, Wave, Positron, Kiro, Trae, Xcode — さらに Claude Code セッションマネージャー: Paseo, cmux, Conductor, Orca, Sculptor, Superset, Crystal, Waku, Jean, Fletch, Constellagent, GraphCode, Clave, Xum。
+- **tmux/Zellij 対応** — マルチプレクサのセッションはホストターミナルとして正しく表示。
+- **デフォルトで静か** — 音量0.2の控えめな完了音。環境変数でミュート/調整。
+- **Windows サポート(実験的)** — Git Bash フック経路から依存ゼロの PowerShell トースト(表示のみ、実機未検証 — 報告歓迎)。
+- **未知のアプリも安全に** — `TERM_PROGRAM` または生のバンドル ID をそのまま表示。マッピング追加は1行。
+
+## コマンド
+
+| コマンド | 動作 |
+|---|---|
+| `/ddiring` | 現在の状態(環境変数設定、`terminal-notifier` の有無、検出されたターミナル) |
+| `/ddiring test` | このセッションの transcript でテスト通知を発射 |
+| `/ddiring volume 0.1` / `mute` | 音量変更 / ミュート |
+
+### 設定
+
+Claude 設定ファイルの `"env"` ブロックに設定すると、新しく開始するセッションから適用されます:
+
+| 変数 | デフォルト | 意味 |
+|---|---|---|
+| `DDIRING_SILENT` | `0` | `1` = 音なしバナーのみ (macOS) |
+| `DDIRING_VOLUME` | `0.2` | 0.0〜1.0 (macOS) |
+| `DDIRING_SOUND` | `Glass.aiff` | `/System/Library/Sounds/*.aiff` の任意のもの (macOS) |
+
+## 動作要件
+
+- macOS(フルサポート)または Windows + Git Bash(実験的)。それ以外の OS では静かに何もしません
+- `python3`(macOS に標準搭載)— transcript の解析用
+- 任意: クリックフォーカス用の `terminal-notifier`(macOS)
+
+## ライセンス
+
+[MIT](./LICENSE) — [DISCLAIMER.md](./DISCLAIMER.md) もご覧ください。
