@@ -8,7 +8,7 @@
 
 > Notificaciones de finalización que de verdad te dicen **qué sesión** terminó.
 
-¿Tienes 5–10 sesiones de Claude Code repartidas entre iTerm, Cursor y un gestor de sesiones? Un simple banner de "tarea completada" no sirve de nada: igual tienes que revisar ventana por ventana. ddiring ("띠링", el *¡ding!* coreano) hace que cada notificación responda tres preguntas de un vistazo: **qué carpeta de proyecto** (título), **en qué terminal o app** vive la sesión (subtítulo) y **qué le pediste** (cuerpo: un resumen de 70 caracteres de tu último prompt). Haz clic para saltar directo a esa app.
+¿Tienes 5–10 sesiones de Claude Code repartidas entre iTerm, Cursor y un gestor de sesiones? Un simple banner de "tarea completada" no sirve de nada: igual tienes que revisar ventana por ventana. ddiring ("띠링", el *¡ding!* coreano) hace que cada notificación responda tres preguntas de un vistazo: **qué carpeta de proyecto** (título), **en qué terminal o app** vive la sesión (subtítulo) y **qué le pediste** (cuerpo: un resumen de 70 caracteres de tu último prompt). En macOS con `terminal-notifier`, haz clic para saltar directo a esa app.
 
 [Inicio rápido](#inicio-rápido) • [Por qué ddiring](#por-qué-ddiring) • [Cómo funciona](#cómo-funciona) • [Funciones](#funciones) • [Comandos](#comandos) • [Requisitos](#requisitos)
 
@@ -54,7 +54,7 @@ El trabajo multi-sesión tiene un micro-dolor recurrente: *algo* terminó, pero 
 
 Un hook `Stop` se dispara cuando una sesión termina de responder (más un hook `Notification` para esperas de permiso/entrada, mostradas con ⏸️). El script:
 
-1. lee la cola del transcript (últimos 200KB) para extraer tu último prompt **real** — omitiendo resultados de herramientas, etiquetas de sistema y marcas de interrupción;
+1. lee la cola del transcript (primero 200KB, ampliando hasta 2MB si hace falta) para extraer tu último prompt **real** — omitiendo resultados de herramientas, etiquetas de sistema y marcas de interrupción;
 2. identifica la app anfitriona por el entorno del proceso — `__CFBundleIdentifier` en macOS, sondeo de variables (`TERM_PROGRAM` → `WT_SESSION` → `ConEmuPID`, de dentro hacia fuera para esquivar falsos positivos por herencia) en Windows;
 3. lanza la notificación: `terminal-notifier` (clicable) u `osascript` en macOS, un toast WinRT de PowerShell 5.1 en Windows.
 
@@ -63,9 +63,9 @@ Como los hooks ejecutan el script desde un archivo, los arreglos de mapeo se apl
 ## Funciones
 
 - **Más de 30 mapeos de apps, verificados con investigación** (`Info.plist` local, definiciones de cask de Homebrew, configs de repos oficiales): Terminal, iTerm2, VS Code (+Insiders), VSCodium, Cursor, Windsurf (Devin), Antigravity, Warp, Ghostty, Alacritty, kitty, WezTerm, Tabby, Hyper, Zed, JetBrains, Rio, Termius, Wave, Positron, Kiro, Trae, Xcode — más gestores de sesiones de Claude Code: Paseo, cmux, Conductor, Orca, Sculptor, Superset, Crystal, Waku, Jean, Fletch, Constellagent, GraphCode, Clave, Xum.
-- **Compatible con tmux/Zellij** — las sesiones de multiplexores muestran correctamente su terminal anfitriona.
+- **Paso directo de tmux/Zellij** — sin lógica de detección propia: se muestra la terminal anfitriona según las variables de entorno heredadas (un servidor tmux adjuntado luego desde otra app puede mostrar el anfitrión original).
 - **Silencioso por defecto** — campanilla suave a volumen 0.2; silénciala o ajústala con variables de entorno.
-- **Soporte de Windows (experimental)** — toast de PowerShell sin dependencias desde el hook de Git Bash (solo visual; aún sin verificar en hardware real — se agradecen reportes).
+- **Soporte de Windows (experimental)** — toast de PowerShell desde el hook de Git Bash. El toast en sí no necesita instalación extra, pero la extracción del prompt requiere Python 3 (sin él, mensaje genérico). Solo visual; aún sin verificar en hardware real — se agradecen reportes.
 - **Apps desconocidas degradan con gracia** — se muestra `TERM_PROGRAM` o el bundle ID tal cual; añadir un mapeo es una línea.
 
 ## Comandos
@@ -85,6 +85,9 @@ Ponlo en el bloque `"env"` de tu archivo de ajustes de Claude (aplica a sesiones
 | `DDIRING_SILENT` | `0` | `1` = solo banner, sin sonido (macOS) |
 | `DDIRING_VOLUME` | `0.2` | 0.0–1.0 (macOS) |
 | `DDIRING_SOUND` | `Glass.aiff` | cualquier `/System/Library/Sounds/*.aiff` (macOS) |
+| `DDIRING_HIDE_BODY` | `0` | `1` = ocultar el cuerpo (privacidad en pantalla de bloqueo / compartida) |
+
+> Nota: el cuerpo de la notificación queda en el centro de notificaciones y la pantalla de bloqueo — usa `DDIRING_HIDE_BODY=1` si tus prompts son sensibles. La primera ejecución de `/ddiring` también instala el hook de avisos de actualización compartido de los plugins gptaku.
 
 ## Requisitos
 

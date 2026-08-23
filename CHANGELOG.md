@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.1.1 — 2026-08-23
+
+Hardening hotfix (GPT-5.6 Sol Pro external review + reproduction-verified).
+
+- **Fixed: osascript fallback broke on quotes/newlines** in folder names or prompts (AppleScript-layer injection surface). AppleScript source is now fixed code; user data passes via argv only.
+- **Fixed: setup.sh could wipe `settings.json`** — if the file was corrupted or contained comments, the updater rewrote it as `{}` + hook, silently destroying all user settings. Now it refuses to write on parse failure and writes atomically (tmp + rename).
+- Fixed: Notification-event messages bypassed the 70-char clip; now clipped with control-char stripping.
+- Fixed: `last-prompt` fallback accepted records with no `sessionId` (comment said "exact match only"); now strict.
+- Hardened: JSON type guards in hook-input parsing and transcript scanning (non-string/non-dict records no longer abort extraction); `terminal-notifier` args array-built with bundle-ID format check; `powershell.exe` existence check.
+- Added: `DDIRING_HIDE_BODY=1` (hide prompt body — lock-screen/screen-share privacy), `DDIRING_DEBUG=1` (failure log at `${TMPDIR:-/tmp}/ddiring.log`).
+- Docs (5 READMEs + SKILL + command): 200KB→2MB extraction wording, tmux/Zellij "aware"→pass-through, Windows "zero-dependency" scoped to the toast backend, click-to-focus conditions stated up front, update-notifier hook disclosed, `/ddiring test` described accurately, en README `볼륨`→`volume`.
+- Known trade-off kept deliberately: prompts starting with `<` are treated as synthetic tags and skipped (documented in notify.sh).
+
 ## 0.1.0 — 2026-08-23
 
 First public release.

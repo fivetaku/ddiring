@@ -17,6 +17,6 @@ If the output is empty, just continue silently. (AskUserQuestion must NOT be in 
 먼저 스킬을 로드하라: `ddiring-config` 스킬 (Skill 도구로 `ddiring:ddiring-config` 호출).
 
 - **상태/status**: 현재 설정(환경변수 DDIRING_SILENT/DDIRING_VOLUME/DDIRING_SOUND), terminal-notifier 설치 여부, 이 세션의 터미널 감지 결과(`__CFBundleIdentifier`)를 보여준다.
-- **테스트/test**: 이 세션의 transcript로 훅 스크립트를 직접 실행해 알림을 띄워본다.
+- **테스트/test**: 훅 스크립트를 샘플 JSON으로 직접 실행해 알림 전달 경로를 검증한다(본문은 고정 문구). 실제 프롬프트 본문까지 보려면 `~/.claude/projects/` 아래 현재 프로젝트의 최신 세션 jsonl 경로를 transcript_path로 넣어 실행한다.
 - **볼륨 N / 음소거 / 소리 변경**: 스킬의 설정 절차를 따라 환경변수를 안내하거나 사용자 설정 파일 `env` 블록에 반영한다.
 - **터미널이 이상하게 표시됨**: 스킬의 매핑 추가 절차를 따른다.

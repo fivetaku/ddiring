@@ -1,18 +1,26 @@
 #!/bin/bash
 # ddiring — Stop/Notification 훅 알림 스크립트
-# 알림 구성: 제목=프로젝트 폴더, 부제목=세션이 떠 있는 터미널/앱, 본문=마지막 사용자 프롬프트 요약
+# 알림 구성: 제목=프로젝트 폴더, 부제목=세션이 떠 있는 터미널/앱,
+#   본문=Stop이면 마지막 사용자 프롬프트 70자 요약 / Notification이면 이벤트 메시지 70자 요약
 # macOS: terminal-notifier(클릭→앱 포커스) / osascript 폴백
 # Windows (Git Bash, experimental): PowerShell 5.1 WinRT 토스트 (클릭 포커스 없음)
 # 설정(환경변수):
-#   DDIRING_SILENT=1   소리 끔 (macOS)
-#   DDIRING_VOLUME     0.0~1.0 (기본 0.2, macOS)
-#   DDIRING_SOUND      /System/Library/Sounds/*.aiff (기본 Glass, macOS)
+#   DDIRING_SILENT=1     소리 끔 (macOS)
+#   DDIRING_VOLUME       0.0~1.0 (기본 0.2, macOS)
+#   DDIRING_SOUND        /System/Library/Sounds/*.aiff (기본 Glass, macOS)
+#   DDIRING_HIDE_BODY=1  본문 숨김(프롬프트 대신 고정 문구 — 잠금화면/화면공유 프라이버시)
+#   DDIRING_DEBUG=1      실패 사유를 ${TMPDIR:-/tmp}/ddiring.log 에 기록
 
 case "$(uname -s)" in
   Darwin)               OS=mac ;;
   MINGW*|MSYS*|CYGWIN*) OS=win ;;
   *)                    exit 0 ;;   # 그 외 OS는 조용히 종료
 esac
+
+debug() {
+  [ "${DDIRING_DEBUG:-0}" = "1" ] || return 0
+  printf '%s %s\n' "$(date '+%H:%M:%S' 2>/dev/null)" "$*" >> "${TMPDIR:-/tmp}/ddiring.log" 2>/dev/null
+}
 
 EVENT="${1:-stop}"   # stop | notification
 INPUT=$(cat)
@@ -22,15 +30,22 @@ command -v python3 >/dev/null 2>&1 && PYBIN=python3
 [ -z "$PYBIN" ] && command -v python >/dev/null 2>&1 && PYBIN=python
 
 if [ -n "$PYBIN" ]; then
+  # shlex.quote로 감싼 단일 단어만 출력하므로 문자열 값으로는 셸 구문 삽입 불가.
+  # 비문자열 타입(JSON 숫자/배열 등)은 빈 문자열로 강제해 부분 출력/예외를 막는다.
   eval "$(printf '%s' "$INPUT" | "$PYBIN" -c '
 import sys, json, shlex
 try: d = json.load(sys.stdin)
 except Exception: d = {}
-print("CWD=" + shlex.quote(d.get("cwd", "")))
-print("FULL_SID=" + shlex.quote(d.get("session_id") or ""))
-print("SID=" + shlex.quote((d.get("session_id") or "")[:8]))
-print("TRANSCRIPT=" + shlex.quote(d.get("transcript_path", "")))
-print("NMSG=" + shlex.quote(d.get("message", "")))
+if not isinstance(d, dict): d = {}
+def text(k):
+    v = d.get(k, "")
+    return v if isinstance(v, str) else ""
+sid = text("session_id")
+print("CWD=" + shlex.quote(text("cwd")))
+print("FULL_SID=" + shlex.quote(sid))
+print("SID=" + shlex.quote(sid[:8]))
+print("TRANSCRIPT=" + shlex.quote(text("transcript_path")))
+print("NMSG=" + shlex.quote(text("message")))
 ' 2>/dev/null)"
 fi
 [ -z "${CWD:-}" ] && CWD="$PWD"
@@ -98,9 +113,23 @@ detect_app_win() {
 
 if [ "$OS" = mac ]; then APP=$(detect_app_mac); else APP=$(detect_app_win); fi
 
-# ── 본문: 마지막 사용자 프롬프트 요약 (Notification 이벤트면 메시지 우선) ──
+# ── 본문 70자 요약 (공백 정규화 + 제어문자 제거) ─────────────────
+clip_text() {
+  if [ -n "$PYBIN" ]; then
+    printf '%s' "$1" | "$PYBIN" -c '
+import sys
+t = "".join(ch for ch in sys.stdin.read() if ord(ch) >= 32 and ord(ch) != 127)
+t = " ".join(t.split())
+sys.stdout.write(t[:70] + ("…" if len(t) > 70 else ""))
+' 2>/dev/null
+  else
+    printf '%.70s' "$1" | tr -d '\n\r'
+  fi
+}
+
+# ── 본문: Stop=마지막 사용자 프롬프트 / Notification=이벤트 메시지 ──
 if [ "$EVENT" = "notification" ] && [ -n "${NMSG:-}" ]; then
-  TASK="$NMSG"
+  TASK=$(clip_text "$NMSG")
 elif [ -n "$PYBIN" ]; then
   TASK=$("$PYBIN" - "${TRANSCRIPT:-}" "${FULL_SID:-}" <<'PYEOF' 2>/dev/null
 import sys, json, os
@@ -122,15 +151,22 @@ def read_tail(size):
         return f.read().decode("utf-8", "ignore").splitlines()
 
 def scan_user(lines):
-    # 진짜 사용자 입력만 — 도구 결과·시스템 태그·인터럽트 표기는 건너뜀
+    # 진짜 사용자 입력만 — 도구 결과·시스템 태그(<로 시작)·인터럽트 표기는 건너뜀.
+    # (드물게 '<'로 시작하는 정상 프롬프트도 건너뛰는 알려진 트레이드오프 —
+    #  합성 태그 종류가 다양해 allowlist보다 안전한 쪽을 택함)
     for line in reversed(lines):
         try:
             o = json.loads(line)
         except Exception:
             continue
+        if not isinstance(o, dict):
+            continue
         if o.get("type") != "user" or o.get("isMeta"):
             continue
-        c = o.get("message", {}).get("content", "")
+        m = o.get("message")
+        if not isinstance(m, dict):
+            continue
+        c = m.get("content", "")
         if isinstance(c, list):
             c = " ".join(p.get("text", "") for p in c if isinstance(p, dict) and p.get("type") == "text")
         if not isinstance(c, str):
@@ -142,17 +178,21 @@ def scan_user(lines):
     return ""
 
 def scan_last_prompt(lines):
-    # 폴백: last-prompt 레코드. 사이드체인(서브에이전트) 것일 수 있어 sessionId 일치만 채택
+    # 폴백: last-prompt 레코드. 사이드체인(서브에이전트) 것일 수 있으므로
+    # sid가 있으면 sessionId가 정확히 일치하는 레코드만 채택(무표기 레코드도 거부)
     for line in reversed(lines):
         try:
             o = json.loads(line)
         except Exception:
             continue
-        if o.get("type") != "last-prompt":
+        if not isinstance(o, dict) or o.get("type") != "last-prompt":
             continue
-        if sid and o.get("sessionId") and o.get("sessionId") != sid:
+        if sid and o.get("sessionId") != sid:
             continue
-        t = (o.get("lastPrompt") or "").strip()
+        t = o.get("lastPrompt")
+        if not isinstance(t, str):
+            continue
+        t = t.strip()
         if t and not t.startswith("<"):
             return clip(t)
     return ""
@@ -171,6 +211,7 @@ PYEOF
 )
 fi
 [ -z "${TASK:-}" ] && TASK="작업 완료 (Done)"
+[ "${DDIRING_HIDE_BODY:-0}" = "1" ] && TASK="작업 완료 (Done)"
 
 ICON="✅"; [ "$EVENT" = "notification" ] && ICON="⏸️"
 
@@ -180,24 +221,39 @@ if [ "$OS" = mac ]; then
     afplay -v "${DDIRING_VOLUME:-0.2}" "${DDIRING_SOUND:-/System/Library/Sounds/Glass.aiff}" >/dev/null 2>&1 &
   fi
   BUNDLE="${__CFBundleIdentifier:-}"
+  # -activate에 넘길 번들 ID는 형식 검증(예상 밖 문자면 미사용)
+  case "$BUNDLE" in
+    *[!A-Za-z0-9._-]*) BUNDLE="" ;;
+  esac
   if command -v terminal-notifier >/dev/null 2>&1; then
-    terminal-notifier \
-      -title "$ICON $PROJ" \
-      -subtitle "$APP" \
-      -message "$TASK" \
-      -group "ddiring-$PROJ-${SID:-x}" \
-      ${BUNDLE:+-activate "$BUNDLE"} \
-      >/dev/null 2>&1
+    TN_ARGS=(
+      -title "$ICON $PROJ"
+      -subtitle "$APP"
+      -message "$TASK"
+      -group "ddiring-$PROJ-${SID:-x}"
+    )
+    [ -n "$BUNDLE" ] && TN_ARGS+=( -activate "$BUNDLE" )
+    terminal-notifier "${TN_ARGS[@]}" >/dev/null 2>&1 || debug "terminal-notifier failed: $?"
   else
-    osascript -e "display notification \"$(printf '%s' "$TASK" | sed 's/"/\\\\"/g')\" with title \"$ICON $PROJ\" subtitle \"$APP\"" >/dev/null 2>&1
+    # AppleScript 소스는 고정, 사용자 데이터는 argv로만 전달(언어 계층 인젝션 차단)
+    osascript - "$TASK" "$ICON $PROJ" "$APP" >/dev/null 2>&1 <<'APPLESCRIPT' || debug "osascript failed: $?"
+on run argv
+  display notification (item 1 of argv) with title (item 2 of argv) subtitle (item 3 of argv)
+end run
+APPLESCRIPT
   fi
   exit 0
 fi
 
 # ── Windows 발화 (experimental) ──────────────────────────────────
-# PowerShell 5.1(powershell.exe) WinRT 원샷 토스트 — 외부 의존성 0.
+# PowerShell 5.1(powershell.exe) WinRT 원샷 토스트 — 토스트 백엔드 자체는 의존성 0.
+# (본문 추출은 위에서 Python 3 필요 — 없으면 고정 문구로 폴백)
 # pwsh(PS7)는 WinRT 프로젝션이 없어 실패할 수 있으므로 반드시 powershell.exe 사용.
 # 원샷 프로세스는 activation 이벤트를 못 받아 클릭 동작은 없음(표시 전용).
+if ! command -v powershell.exe >/dev/null 2>&1; then
+  debug "powershell.exe not found"
+  exit 0
+fi
 export DDIRING_T="$ICON $PROJ · $APP"
 export DDIRING_B="$TASK"
 powershell.exe -NoProfile -NonInteractive -Command '
@@ -208,6 +264,6 @@ $t.Item(0).AppendChild($x.CreateTextNode($env:DDIRING_T)) | Out-Null
 $t.Item(1).AppendChild($x.CreateTextNode($env:DDIRING_B)) | Out-Null
 $appid = "{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7}\WindowsPowerShell\v1.0\powershell.exe"
 [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier($appid).Show([Windows.UI.Notifications.ToastNotification]::new($x))
-' >/dev/null 2>&1
+' >/dev/null 2>&1 || debug "PowerShell toast failed: $?"
 
 exit 0
