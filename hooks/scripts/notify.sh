@@ -10,6 +10,7 @@
 #   DDIRING_SOUND        /System/Library/Sounds/*.aiff (기본 Glass, macOS)
 #   DDIRING_HIDE_BODY=1  본문 숨김(프롬프트 대신 고정 문구 — 잠금화면/화면공유 프라이버시)
 #   DDIRING_DEBUG=1      실패 사유를 ${TMPDIR:-/tmp}/ddiring.log 에 기록
+# 관측: 마지막 발화 상태 1줄이 항상 ~/.cache/ddiring/last-notify 에 남는다
 
 case "$(uname -s)" in
   Darwin)               OS=mac ;;
@@ -20,6 +21,13 @@ esac
 debug() {
   [ "${DDIRING_DEBUG:-0}" = "1" ] || return 0
   printf '%s %s\n' "$(date '+%H:%M:%S' 2>/dev/null)" "$*" >> "${TMPDIR:-/tmp}/ddiring.log" 2>/dev/null
+}
+
+# 마지막 발화 상태 1줄 — 항상 기록(고정 크기, HOME 기준 고정 경로).
+# "소리만 나고 배너가 없다" 류 무음 실패를 사후 진단 가능하게 하는 관측 창구.
+status() {
+  mkdir -p "$HOME/.cache/ddiring" 2>/dev/null
+  printf '%s %s\n' "$(date '+%F %H:%M:%S' 2>/dev/null)" "$*" > "$HOME/.cache/ddiring/last-notify" 2>/dev/null
 }
 
 EVENT="${1:-stop}"   # stop | notification
@@ -225,7 +233,18 @@ if [ "$OS" = mac ]; then
   case "$BUNDLE" in
     *[!A-Za-z0-9._-]*) BUNDLE="" ;;
   esac
+  # terminal-notifier 탐색은 PATH에 의존하면 안 된다 — 데몬/GUI 기동 세션의 훅은
+  # homebrew 경로가 빠진 최소 PATH로 실행되어 폴백으로 새고, osascript 폴백은
+  # 알림 권한이 없으면 exit 0인 채 배너를 조용히 버린다(소리만 나는 반쪽 알림).
+  TN=""
   if command -v terminal-notifier >/dev/null 2>&1; then
+    TN=$(command -v terminal-notifier)
+  else
+    for _c in /opt/homebrew/bin/terminal-notifier /usr/local/bin/terminal-notifier; do
+      [ -x "$_c" ] && { TN="$_c"; break; }
+    done
+  fi
+  if [ -n "$TN" ]; then
     TN_ARGS=(
       -title "$ICON $PROJ"
       -subtitle "$APP"
@@ -233,14 +252,25 @@ if [ "$OS" = mac ]; then
       -group "ddiring-$PROJ-${SID:-x}"
     )
     [ -n "$BUNDLE" ] && TN_ARGS+=( -activate "$BUNDLE" )
-    terminal-notifier "${TN_ARGS[@]}" >/dev/null 2>&1 || debug "terminal-notifier failed: $?"
+    if "$TN" "${TN_ARGS[@]}" >/dev/null 2>&1; then
+      status "tn ok ($TN) proj=$PROJ app=$APP"
+    else
+      status "tn FAILED rc=$? ($TN) proj=$PROJ"; debug "terminal-notifier failed"
+    fi
   else
     # AppleScript 소스는 고정, 사용자 데이터는 argv로만 전달(언어 계층 인젝션 차단)
-    osascript - "$TASK" "$ICON $PROJ" "$APP" >/dev/null 2>&1 <<'APPLESCRIPT' || debug "osascript failed: $?"
+    # 주의: 이 경로는 osascript에 알림 권한이 없으면 exit 0이어도 배너가 표시되지
+    # 않는다 — status 파일에 폴백 사용을 남겨 무음 실패를 진단 가능하게 한다.
+    if osascript - "$TASK" "$ICON $PROJ" "$APP" >/dev/null 2>&1 <<'APPLESCRIPT'
 on run argv
   display notification (item 1 of argv) with title (item 2 of argv) subtitle (item 3 of argv)
 end run
 APPLESCRIPT
+    then
+      status "fallback-osascript rc=0 (tn not found; 권한 없으면 배너 미표시 가능) proj=$PROJ"
+    else
+      status "fallback-osascript FAILED rc=$? proj=$PROJ"; debug "osascript failed"
+    fi
   fi
   exit 0
 fi

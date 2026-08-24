@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.2 — 2026-08-24
+
+Silent-failure root fix (reproduction-verified with a homebrew-less PATH).
+
+- **Fixed: sound-only "half notification" in daemon/GUI-launched sessions.** Hooks in sessions started outside a login shell run with a minimal PATH, so `terminal-notifier` was never found and the script fell back to `osascript` — which exits 0 yet silently drops the banner when it lacks notification permission. `terminal-notifier` is now resolved PATH-independently (`command -v` → `/opt/homebrew/bin` → `/usr/local/bin`), so the banner+click-to-jump path works in every launch context.
+- **Added: always-on last-notify status line** at `~/.cache/ddiring/last-notify` (fixed size, one line) recording which path fired (`tn ok` / `tn FAILED` / `fallback-osascript`) — makes silent failures diagnosable after the fact without enabling debug mode.
+- Documented: the osascript fallback can still drop banners without permission; the status line now marks that case explicitly.
+
 ## 0.1.1 — 2026-08-23
 
 Hardening hotfix (GPT-5.6 Sol Pro external review + reproduction-verified).
