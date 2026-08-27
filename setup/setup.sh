@@ -139,6 +139,22 @@ if [ ! -f "$SETUP_MARKER" ]; then
   fi
   ts=$(date +%s 2>/dev/null || echo 0)
   printf '{"setup":true,"plugin":"%s","ts":%s}\n' "$PLUGIN" "$ts" > "$SETUP_MARKER"
+  FIRST_RUN=1
+fi
+
+# --- first-run self-check: does a notification actually get DISPLAYED? ---
+# 설치만으로는 알 수 없는 실패가 있다 — 발사는 성공하는데 macOS가 표시를 삼키는 경우
+# (화면 공유/미러링 중, 집중 모드, 알림 권한 미허용). 소리만 나고 배너가 없어서
+# 사용자는 "플러그인 고장"으로 읽지만 실제로는 OS 설정 문제다. 첫 실행에 한 번
+# 실제 알림을 쏘고 OS 판정을 읽어, 문제가 있을 때만 호출자에게 한 줄로 알린다.
+# (약 4초 소요 — 첫 실행에만, 정상이면 아무것도 출력하지 않는다.)
+if [ "${FIRST_RUN:-0}" = "1" ] && [ -x "$HERE/doctor.sh" ]; then
+  DOCTOR_OUT=$(bash "$HERE/doctor.sh" 2>/dev/null)
+  [ -n "$DOCTOR_OUT" ] && printf '%s\n' "$DOCTOR_OUT" > "$MARKER_DIR/$PLUGIN.doctor.txt"
+  DOCTOR_VERDICT=$(printf '%s' "$DOCTOR_OUT" | sed -n 's/^verdict=//p' | tail -1)
+  if [ -n "$DOCTOR_VERDICT" ] && [ "$DOCTOR_VERDICT" != "OK" ]; then
+    echo "DDIRING_DOCTOR $DOCTOR_VERDICT"
+  fi
 fi
 
 # --- ask mode: emit the star prompt EXACTLY ONCE, recording it deterministically ---

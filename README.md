@@ -67,6 +67,7 @@ Because hooks run the script from a file, mapping fixes apply to **already-runni
 - **Quiet by default** — soft chime at volume 0.2; mute or retune via env vars.
 - **Windows support (experimental)** — PowerShell toast from the Git Bash hook path; the toast backend itself needs no extra install, but prompt extraction needs Python 3 (falls back to a generic message without it). Display-only, not yet verified on real hardware — reports welcome.
 - **Unknown apps degrade gracefully** — falls back to `TERM_PROGRAM` or the raw bundle ID; one-line fix to add a mapping.
+- **Self-check that verifies display, not just delivery** — a notification can fire successfully and still be swallowed by macOS (screen sharing or mirroring, Focus mode, missing permission), leaving sound with no banner. `/ddiring doctor` sends a test notification and reads the OS's own verdict to say whether it was actually shown, and if not, exactly why. Runs once automatically on first use.
 
 ## Commands
 
@@ -74,6 +75,7 @@ Because hooks run the script from a file, mapping fixes apply to **already-runni
 |---|---|
 | `/ddiring` | show current status (env config, `terminal-notifier` presence, detected terminal) |
 | `/ddiring test` | fire a test notification from this session's transcript |
+| `/ddiring doctor` | diagnose notifications that fire but never appear (screen sharing/mirroring, Focus, permission) |
 | `/ddiring volume 0.1` / `mute` | change volume / mute |
 
 ### Configuration

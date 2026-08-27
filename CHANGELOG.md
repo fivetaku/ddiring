@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.2.0 — 2026-08-27
+
+Self-check that verifies **display**, not just delivery (found by reproducing a live sound-only failure).
+
+- **Added: `/ddiring 진단` (`doctor`)** — `setup/doctor.sh` fires one test notification and then reads the OS's own evidence to decide whether macOS actually *showed* it, and if not, why. Three evidence layers, each falling back to the next: `donotdisturbd`'s resolution log (`outcome`/`reason` — the OS's own verdict), the notification center DB's `presented` flag, then settings state (Focus assertions, "DND while mirroring/sharing"). Emits language-neutral `key=value` lines plus one `verdict=`; the skill maps each verdict to a fix in the user's language.
+- **Added: first-run self-check.** The first `/ddiring` run now performs the diagnosis once (~4s) and surfaces `DDIRING_DOCTOR <verdict>` only when something is wrong; the result is kept at `~/.gptaku-setup/ddiring.doctor.txt`. Later runs skip it entirely.
+- **Why this exists:** v0.1.2 fixed the sound-only failure whose cause was inside the plugin (PATH-dependent `terminal-notifier` lookup). The remaining sound-only failures are *outside* it — macOS suppresses every app's banner while the display is shared or mirrored (`reason: display shared`), during Focus, or without notification permission. `notify.sh` exits 0 in all of those cases, so no plugin-side log can tell them apart; the diagnosis reads the OS instead of guessing.
+- Distinguishes "never had permission" from "permission fine, environment is suppressing" via whether the notifier app has *ever* been presented — the two need opposite fixes.
+- Two portability traps caught while testing the diagnosis itself, both of which would have produced confident wrong answers: `timeout` does not exist on stock macOS (only with coreutils), so under a hook's minimal PATH the log query failed silently and the verdict degraded to "no evidence" — replaced with a dependency-free bounded run; and the notification center records `com.apple.scripteditor2` in lowercase while the OS log writes `com.apple.ScriptEditor2`, so the case-sensitive lookup reported "never presented" for every user without `terminal-notifier` — i.e. a false "permission denied" verdict. Both paths are now verified under `PATH=/usr/bin:/bin:/usr/sbin:/sbin`.
+
 ## 0.1.2 — 2026-08-24
 
 Silent-failure root fix (reproduction-verified with a homebrew-less PATH).

@@ -67,6 +67,7 @@ Como los hooks ejecutan el script desde un archivo, los arreglos de mapeo se apl
 - **Silencioso por defecto** — campanilla suave a volumen 0.2; silénciala o ajústala con variables de entorno.
 - **Soporte de Windows (experimental)** — toast de PowerShell desde el hook de Git Bash. El toast en sí no necesita instalación extra, pero la extracción del prompt requiere Python 3 (sin él, mensaje genérico). Solo visual; aún sin verificar en hardware real — se agradecen reportes.
 - **Apps desconocidas degradan con gracia** — se muestra `TERM_PROGRAM` o el bundle ID tal cual; añadir un mapeo es una línea.
+- **Autodiagnóstico que verifica la visualización, no solo el envío** — una notificación puede enviarse con éxito y aun así ser descartada por macOS (pantalla compartida o duplicada, modo Concentración, permiso faltante), dejando sonido sin banner. `/ddiring doctor` envía una notificación de prueba y lee el veredicto del propio sistema para decir si realmente se mostró y, si no, por qué. Se ejecuta una vez automáticamente en el primer uso.
 
 ## Comandos
 
@@ -74,6 +75,7 @@ Como los hooks ejecutan el script desde un archivo, los arreglos de mapeo se apl
 |---|---|
 | `/ddiring` | muestra el estado actual (config de entorno, presencia de `terminal-notifier`, terminal detectada) |
 | `/ddiring test` | lanza una notificación de prueba con el transcript de esta sesión |
+| `/ddiring doctor` | diagnostica notificaciones que se envían pero nunca aparecen (pantalla compartida/duplicada, Concentración, permisos) |
 | `/ddiring volume 0.1` / `mute` | cambia el volumen / silencia |
 
 ### Configuración

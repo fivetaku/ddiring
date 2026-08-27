@@ -67,6 +67,7 @@ brew install terminal-notifier
 - **默认安静** —— 音量 0.2 的轻柔完成音,可通过环境变量静音/调整。
 - **Windows 支持(实验性)** —— Git Bash 钩子路径下的 PowerShell toast。toast 本身无需额外安装,但提示词提取需要 Python 3(没有则显示通用文案)。仅显示,尚未在真机验证——欢迎反馈。
 - **未知应用优雅降级** —— 回退显示 `TERM_PROGRAM` 或原始 bundle ID;加一行即可补映射。
+- **验证「是否显示」而非「是否发送」的自检** —— 通知发送成功后仍可能被 macOS 拦下不显示（屏幕共享或镜像中、专注模式、未授予通知权限），结果只有声音没有横幅,看起来像插件坏了。`/ddiring 诊断` 会发一条测试通知并读取系统自身的判定,告诉你它是否真的显示过,没有的话原因是什么。首次使用时自动运行一次。
 
 ## 命令
 
@@ -74,6 +75,7 @@ brew install terminal-notifier
 |---|---|
 | `/ddiring` | 显示当前状态(环境变量配置、是否安装 `terminal-notifier`、检测到的终端) |
 | `/ddiring test` | 用本会话的 transcript 发一条测试通知 |
+| `/ddiring 诊断` | 诊断通知已发送却不显示的原因（屏幕共享/镜像、专注模式、权限） |
 | `/ddiring volume 0.1` / `mute` | 调整音量 / 静音 |
 
 ### 配置
