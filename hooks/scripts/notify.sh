@@ -251,7 +251,17 @@ if [ "$OS" = mac ]; then
       -message "$TASK"
       -group "ddiring-$PROJ-${SID:-x}"
     )
-    [ -n "$BUNDLE" ] && TN_ARGS+=( -activate "$BUNDLE" )
+    # Keep ddiring as the sender. The board only resolves a click to an exact
+    # current session; an identified original app remains the fallback.
+    BOARD_NODE="$HOME/Library/Application Support/com.elgato.StreamDeck/NodeJS/20.20.0/node"
+    BOARD_COMMAND="$HOME/streamdeck-dev/30-plugins/com.gptaku.cc-control.sdPlugin/bin/board-command.js"
+    if [ -n "${FULL_SID:-}" ] && [ -x "$BOARD_NODE" ] && [ -f "$BOARD_COMMAND" ] &&
+       CLICK_COMMAND=$("$BOARD_NODE" "$BOARD_COMMAND" click-command "$FULL_SID" "$BUNDLE" 2>/dev/null) &&
+       [ -n "$CLICK_COMMAND" ]; then
+      TN_ARGS+=( -execute "$CLICK_COMMAND" )
+    elif [ -n "$BUNDLE" ]; then
+      TN_ARGS+=( -activate "$BUNDLE" )
+    fi
     if "$TN" "${TN_ARGS[@]}" >/dev/null 2>&1; then
       status "tn ok ($TN) proj=$PROJ app=$APP"
     else
