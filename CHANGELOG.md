@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.2.1 — 2026-10-13
+- **Routed through gptaku-core.** Declares `gptaku-core` as a dependency and adds `routing.json`, so requests that match this plugin's skills are pointed to them before Claude handles the work itself or reaches for native tools. Existing users: run `/reload-plugins` after updating, or reinstall the plugin, so gptaku-core gets installed. Opt out with `GPTAKU_ROUTER=off`.
+
 ## 0.2.0 — 2026-08-27
 
 Self-check that verifies **display**, not just delivery (found by reproducing a live sound-only failure).
