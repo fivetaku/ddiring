@@ -27,8 +27,7 @@
         "readme",
         "code",
         "function",
-        "swift",
-        "권한"
+        "swift"
       ],
       "weak": [
         "띠링",
@@ -40,7 +39,6 @@
         "해라",
         "해봐",
         "돌려",
-        "써서",
         "시켜",
         "호출",
         "로 해",
@@ -59,7 +57,12 @@
         "코드",
         "테스트해봤",
         "동작한"
-      ]
+      ],
+      "aliases": [
+        "ddiring:ddiring",
+        "ddiring"
+      ],
+      "any_mood": true
     }
   ]
 }

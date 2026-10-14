@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "ddiring",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "띠링 — 멀티세션용 작업 완료 알림. 어느 폴더·어느 터미널(iTerm/Cursor/Warp/Ghostty와 cmux/Conductor/Orca 등 세션 매니저 포함 30+종)·무슨 작업이 끝났는지 한눈에 보여주는 알림 훅. 클릭하면 그 앱으로 점프(macOS). Windows는 실험 지원.",
   "author": {
     "name": "fivetaku"
