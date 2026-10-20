@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.3 — 2026-10-20
+- **Restored: Stream Deck click-to-session.** The 2026-09-13 fix (clicking a notification jumps to the exact session through the cc-control board's `click-command`, falling back to `-activate` of the original app) never reached a release — 0.2.1/0.2.2 were cut from a branch without it. It is now rebased onto 0.2.2.
+- **Fixed: the board path no longer pins one Node version.** Stream Deck replaces its bundled Node on update (20.20.0 → 20.20.2 here), which would have silently disabled the click-through. ddiring now picks an installed `NodeJS/*/node`; `DDIRING_BOARD_NODE` and `DDIRING_BOARD_COMMAND` override both paths. Without the board, behavior is unchanged.
+
 ## 0.2.2 — 2026-10-14
 - **gptaku-core routing tuned.** Adjusted keywords and exclusions in `routing.json` against false matches found in real conversations. Takes effect together with gptaku-core 0.1.1.
 
