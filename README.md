@@ -28,6 +28,8 @@ Running 5–10 Claude Code sessions across iTerm, Cursor, and a session manager?
 /plugin install ddiring
 ```
 
+Codex: `codex plugin marketplace add fivetaku/gptaku_plugins` then `codex plugin add ddiring@gptaku-plugins`. On Codex the Stop notification works; the Notification event (permission/input waits) is not supported there.
+
 ### 3. Restart Claude Code
 
 (Hooks and commands only register after a restart.)

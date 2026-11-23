@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.0 — 2026-11-23
+- **Codex에서도 같은 스킬로 동작.** Codex의 Stop 훅 알림을 유지하고, Codex rollout 형식의 transcript에서도 마지막 사용자 프롬프트를 읽어 알림 본문에 쓴다(Claude Code 형식은 그대로). Notification 이벤트는 Codex 미지원이라 Codex에서는 권한·입력 대기 알림이 없다(`references/codex.md`).
+- 테스트용 `DDIRING_DRYRUN=1` 추가 — 발화 없이 알림 문구만 출력. setup.sh에 Codex 가드.
+
 ## 0.2.3 — 2026-10-20
 - **Restored: Stream Deck click-to-session.** The 2026-09-13 fix (clicking a notification jumps to the exact session through the cc-control board's `click-command`, falling back to `-activate` of the original app) never reached a release — 0.2.1/0.2.2 were cut from a branch without it. It is now rebased onto 0.2.2.
 - **Fixed: the board path no longer pins one Node version.** Stream Deck replaces its bundled Node on update (20.20.0 → 20.20.2 here), which would have silently disabled the click-through. ddiring now picks an installed `NodeJS/*/node`; `DDIRING_BOARD_NODE` and `DDIRING_BOARD_COMMAND` override both paths. Without the board, behavior is unchanged.

@@ -28,6 +28,8 @@ iTerm, Cursor, 세션 매니저에 걸쳐 클로드코드 세션을 5~10개 띄�
 /plugin install ddiring
 ```
 
+Codex는 `codex plugin marketplace add fivetaku/gptaku_plugins` 후 `codex plugin add ddiring@gptaku-plugins`. Codex에서는 Stop 알림만 동작하고 Notification(권한·입력 대기) 이벤트는 지원되지 않습니다.
+
 ### 3. Claude Code 재시작
 
 (훅과 명령어는 재시작 후에 등록됩니다.)

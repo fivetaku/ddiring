@@ -6,6 +6,7 @@ description: This skill should be used when the user asks to "띠링 설정", "�
 # ddiring 설정
 
 알림 스크립트: `${CLAUDE_PLUGIN_ROOT}/hooks/scripts/notify.sh`
+Codex에서는 `${CLAUDE_PLUGIN_ROOT}`를 이 플러그인 루트(이 SKILL.md에서 두 단계 위 폴더)로 바꿔 읽는다. Codex 차이(Notification 미지원 등)는 `references/codex.md`.
 동작: Stop(작업 완료)·Notification(권한/입력 대기) 이벤트마다 알림을 띄운다.
 - 제목 `✅ 폴더명` · 부제목 `터미널/앱 이름` · 본문: Stop이면 `마지막 사용자 프롬프트 70자 요약`, Notification이면 `이벤트 메시지 70자 요약`
 - macOS: `terminal-notifier`가 있으면 클릭 시 해당 앱으로 포커스 이동, 없으면 osascript 배너로 폴백.

@@ -9,6 +9,7 @@
 #   DDIRING_VOLUME       0.0~1.0 (기본 0.2, macOS)
 #   DDIRING_SOUND        /System/Library/Sounds/*.aiff (기본 Glass, macOS)
 #   DDIRING_HIDE_BODY=1  본문 숨김(프롬프트 대신 고정 문구 — 잠금화면/화면공유 프라이버시)
+#   DDIRING_DRYRUN=1     문구만 stdout에 출력하고 발화하지 않음 (테스트)
 #   DDIRING_DEBUG=1      실패 사유를 ${TMPDIR:-/tmp}/ddiring.log 에 기록
 # 관측: 마지막 발화 상태 1줄이 항상 ~/.cache/ddiring/last-notify 에 남는다
 
@@ -169,18 +170,25 @@ def scan_user(lines):
             continue
         if not isinstance(o, dict):
             continue
-        if o.get("type") != "user" or o.get("isMeta"):
-            continue
-        m = o.get("message")
-        if not isinstance(m, dict):
+        if o.get("type") == "response_item":
+            # Codex rollout: {"type":"response_item","payload":{"type":"message","role":"user",
+            #   "content":[{"type":"input_text","text":...}]}}
+            m = o.get("payload")
+            if not isinstance(m, dict) or m.get("type") != "message" or m.get("role") != "user":
+                continue
+        elif o.get("type") == "user" and not o.get("isMeta"):
+            m = o.get("message")   # Claude Code transcript
+            if not isinstance(m, dict):
+                continue
+        else:
             continue
         c = m.get("content", "")
         if isinstance(c, list):
-            c = " ".join(p.get("text", "") for p in c if isinstance(p, dict) and p.get("type") == "text")
+            c = " ".join(p.get("text", "") for p in c if isinstance(p, dict) and p.get("type") in ("text", "input_text"))
         if not isinstance(c, str):
             continue
         t = c.strip()
-        if not t or t.startswith("<") or t.startswith("[Request interrupted"):
+        if not t or t.startswith("<") or t.startswith("[Request interrupted") or t.startswith("# AGENTS.md"):
             continue
         return clip(t)
     return ""
@@ -222,6 +230,12 @@ fi
 [ "${DDIRING_HIDE_BODY:-0}" = "1" ] && TASK="작업 완료 (Done)"
 
 ICON="✅"; [ "$EVENT" = "notification" ] && ICON="⏸️"
+
+# 드라이런: 문구만 출력하고 발화(소리·배너)하지 않는다 (테스트용)
+if [ "${DDIRING_DRYRUN:-0}" = "1" ]; then
+  printf '%s %s | %s | %s\n' "$ICON" "$PROJ" "$APP" "$TASK"
+  exit 0
+fi
 
 # ── macOS 발화 ───────────────────────────────────────────────────
 if [ "$OS" = mac ]; then
